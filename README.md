@@ -1,4 +1,5 @@
 # DigitaleBildverarbeitungUebungen
+![grafik](https://github.com/TimoFeucht/DigitaleBildverarbeitungUebungen/assets/107626365/a04fbd59-f8ed-427c-a64d-06744dfe856e)
 
 ## Projektübersicht: Spurerkennung
 ### Mindestanforderungen (entspricht der Note 2,0)
