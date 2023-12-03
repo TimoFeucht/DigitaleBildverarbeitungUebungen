@@ -46,7 +46,12 @@ class LaneDetection:
             # operations on the frame come here
             frame = self.undistorted_frame(frame)
             # ToDo: add lane detection for frame
-
+            cropped_frame = self.crop_image(frame)
+            transformed_frame = self.transform_perspective(cropped_frame)
+            filtered_frame = self.filter_frame(transformed_frame)
+            thresholded_frame = self.threshold_frame(filtered_frame)
+            curve_fitted_frame = self.fit_curve(thresholded_frame, frame)
+            frame = curve_fitted_frame
             # calculate fps
             fps = 1 / (new_frame_time - prev_frame_time)
             prev_frame_time = new_frame_time
@@ -60,7 +65,7 @@ class LaneDetection:
 
             # display fps average
             # ToDo: frame average needed?
-            cv.putText(frame, str(int(fps_sum/frame_counter)), (1080, 80), font, 3, (0, 0, 0), 3, cv.LINE_AA)
+            cv.putText(frame, str(int(fps_sum / frame_counter)), (1080, 80), font, 3, (0, 0, 0), 3, cv.LINE_AA)
 
             # Display the resulting frame
             cv.imshow(self.video_name, frame)
@@ -79,6 +84,108 @@ class LaneDetection:
         x, y, w, h = roi
         return undistorted_img[y:y + h, x:x + w]
 
+    def crop_image(self, frame):
+        # zuschneiden des Bildes
+        print(frame.shape)
+        return frame[370:, 200:1080]
+
+    def transform_perspective(self, cropped_frame):
+        # get the height and width of the images
+        h, w = cropped_frame.shape[:2]
+
+        # define the source and destination points for the perspective transformation
+        src = np.float32([[340, 40], [540, 40], [870, 240], [10, 240]])
+        dst = np.float32([[0, 0], [w, 0], [w, h], [0, h]])
+
+        # get the perspective transformation matrix
+        M = cv.getPerspectiveTransform(src, dst)
+        # warp the image to get a bird view
+        warped_frame = cv.warpPerspective(cropped_frame, M, (cropped_frame.shape[1], cropped_frame.shape[0]))
+
+        return warped_frame
+
+    def filter_color_range(self, img, lower, upper):
+        hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+        mask = cv.inRange(hsv, lower, upper)
+        filtered_img = cv.bitwise_and(img, img, mask=mask)
+        return filtered_img
+
+    def filter_frame(self, frame):
+
+        # Farbbereiche definieren
+        yellow_range = (np.array([20, 100, 20]), np.array([30, 255, 255]))
+        white_range = (np.array([0, 0, 200]), np.array([255, 30, 255]))
+
+        img_filtered_yellow = self.filter_color_range(frame, *yellow_range)
+        img_filtered_white = self.filter_color_range(frame, *white_range)
+        img_filtered = cv.addWeighted(img_filtered_yellow, 1, img_filtered_white, 1, 0)
+        return img_filtered
+
+    def threshold_frame(self, frame):
+        img_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+
+        # add thresholding
+        _, binary_image = cv.threshold(img_gray, 180, 255, cv.THRESH_BINARY)
+
+        return binary_image
+
+    def generate_curve_function(self, params):
+        return lambda x: params[0] * x ** 2 + params[1] * x + params[2]
+
+    def fit_curve(self, frame, original_frame):
+        kernel_ver = np.array([[0, 0, 0], [1, 1, 1], [0, 0, 0]], 'uint8')
+        opening_frame = cv.morphologyEx(frame, cv.MORPH_OPEN, kernel_ver, iterations=5)
+        opened_frame = opening_frame
+        # curve fitting for left and right lane
+        left_x, left_y = np.where(opened_frame[:, :int(opened_frame.shape[1] / 2)] == 255)
+        right_x, right_y = np.where(opened_frame[:, int(opened_frame.shape[1] / 2):] == 255)
+        left_fit = np.polyfit(left_x, left_y, 2)
+        right_fit = np.polyfit(right_x, right_y, 2)
+
+        # Erzeuge eine Liste von x-Werten
+        x_values_left = np.linspace(0, 800, 100)
+        x_values_right = np.linspace(0, 800, 100)
+
+        # Erzeuge die y-Werte basierend auf der Funktion
+        curve_function_left = self.generate_curve_function(left_fit)
+        y_values_left = curve_function_left(x_values_left)
+        curve_function_right = self.generate_curve_function(right_fit)
+        y_values_right = curve_function_right(x_values_right)
+
+        # create image from curve function
+        frame_lanes = np.zeros_like(original_frame)
+        for i in range(len(x_values_left) - 1):
+            cv.line(frame_lanes, (int(y_values_left[i]), int(x_values_left[i])),
+                    (int(y_values_left[i + 1]), int(x_values_left[i + 1])), (255, 0, 0), 5)
+            cv.line(frame_lanes, (int(y_values_right[i]) + int(frame_lanes.shape[1] / 2), int(x_values_right[i])),
+                    (int(y_values_right[i + 1]) + int(frame_lanes.shape[1] / 2), int(x_values_right[i + 1])), (255, 0, 0),
+                    5)
+
+        # copy image only to execute pieces of code independently
+        frame_marked_lanes = original_frame.copy()
+        # Erzeuge eine Maske basierend auf img_lanes
+        mask = np.zeros_like(frame_marked_lanes)
+        mask[:, :, :] = frame_lanes  # Setze den roten Kanal auf den Wert von img_lanes
+
+        h, w = frame.shape[:2]
+        # Rücktransformation der Vogelperspektive bei Funktionen
+        # Die Quell- und Ziel-Punkte für die Perspektivtransformation definieren
+        src = np.float32([[340, 40], [540, 40], [870, 240], [10, 240]])
+        dst = np.float32([[0, 0], [w, 0], [w, h], [0, h]])
+
+        # Die inverse Transformationsmatrix berechnen
+        M_inv = cv.getPerspectiveTransform(dst, src)
+
+        # Die Rücktransformation der Vogelperspektive zum Originalbild durchführen
+        mask_inv = cv.warpPerspective(mask, M_inv, (mask.shape[1], mask.shape[0]))
+
+        # Erzeuge ein boolean-Array für die Pixel, die in der Maske gesetzt sind
+        mask_pixels = mask_inv[:, :, 0] == 255
+
+        # Setze die Farbwerte für die Pixel in img_original, wo die Maske gesetzt ist
+        frame_marked_lanes[mask_pixels] = [0, 0, 255]
+
+        return frame_marked_lanes
 
 if __name__ == '__main__':
     video_name = 'project_video.mp4'
