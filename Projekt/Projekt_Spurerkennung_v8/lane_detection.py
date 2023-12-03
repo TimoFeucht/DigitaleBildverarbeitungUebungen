@@ -86,7 +86,7 @@ class LaneDetection:
 
     def crop_image(self, frame):
         # zuschneiden des Bildes
-        print(frame.shape)
+        # print(frame.shape)
         return frame[370:, 200:1080]
 
     def transform_perspective(self, cropped_frame):
@@ -132,9 +132,15 @@ class LaneDetection:
     def generate_curve_function(self, params):
         return lambda x: params[0] * x ** 2 + params[1] * x + params[2]
 
-    def fit_curve(self, frame, original_frame):
+    def fit_curve(self, frame_warp, original_frame):
+        """
+        Fits a curve to the lane lines
+        :param frame_warp: image in grayscale (cropped, warped and with thresholding)
+        :param original_frame: original image
+        :return: original image with curve in red
+        """
         kernel_ver = np.array([[0, 0, 0], [1, 1, 1], [0, 0, 0]], 'uint8')
-        opening_frame = cv.morphologyEx(frame, cv.MORPH_OPEN, kernel_ver, iterations=5)
+        opening_frame = cv.morphologyEx(frame_warp, cv.MORPH_OPEN, kernel_ver, iterations=5)
         opened_frame = opening_frame
         # curve fitting for left and right lane
         left_x, left_y = np.where(opened_frame[:, :int(opened_frame.shape[1] / 2)] == 255)
@@ -153,21 +159,20 @@ class LaneDetection:
         y_values_right = curve_function_right(x_values_right)
 
         # create image from curve function
-        frame_lanes = np.zeros_like(original_frame)
+        frame_lanes = np.zeros_like(frame_warp)
         for i in range(len(x_values_left) - 1):
             cv.line(frame_lanes, (int(y_values_left[i]), int(x_values_left[i])),
-                    (int(y_values_left[i + 1]), int(x_values_left[i + 1])), (255, 0, 0), 5)
+                    (int(y_values_left[i + 1]), int(x_values_left[i + 1])), (255, 255, 255), 5)
             cv.line(frame_lanes, (int(y_values_right[i]) + int(frame_lanes.shape[1] / 2), int(x_values_right[i])),
-                    (int(y_values_right[i + 1]) + int(frame_lanes.shape[1] / 2), int(x_values_right[i + 1])), (255, 0, 0),
+                    (int(y_values_right[i + 1]) + int(frame_lanes.shape[1] / 2), int(x_values_right[i + 1])),
+                    (255, 255, 255),
                     5)
 
-        # copy image only to execute pieces of code independently
-        frame_marked_lanes = original_frame.copy()
-        # Erzeuge eine Maske basierend auf img_lanes
-        mask = np.zeros_like(frame_marked_lanes)
-        mask[:, :, :] = frame_lanes  # Setze den roten Kanal auf den Wert von img_lanes
+        # create mask for lanes
+        mask_warp_size = np.zeros_like(frame_warp)
+        mask_warp_size[:, :] = frame_lanes
 
-        h, w = frame.shape[:2]
+        h, w = frame_warp.shape[:2]
         # Rücktransformation der Vogelperspektive bei Funktionen
         # Die Quell- und Ziel-Punkte für die Perspektivtransformation definieren
         src = np.float32([[340, 40], [540, 40], [870, 240], [10, 240]])
@@ -177,15 +182,24 @@ class LaneDetection:
         M_inv = cv.getPerspectiveTransform(dst, src)
 
         # Die Rücktransformation der Vogelperspektive zum Originalbild durchführen
-        mask_inv = cv.warpPerspective(mask, M_inv, (mask.shape[1], mask.shape[0]))
+        mask_warp_size_inv = cv.warpPerspective(mask_warp_size, M_inv, (w, h))
+
+        # create mask for lanes in original frame to fit the curve to the original frame
+        mask_original_size = np.zeros_like(original_frame)
+        h_o, w_o = original_frame.shape[:2]
+        a = w_o / 2 - w / 2 + 35
+        b = w_o / 2 + w / 2 + 35
+
+        mask_original_size[h_o - h:h_o, int(a):int(b), 0] = mask_warp_size_inv
 
         # Erzeuge ein boolean-Array für die Pixel, die in der Maske gesetzt sind
-        mask_pixels = mask_inv[:, :, 0] == 255
+        mask_bool_pixels = mask_original_size[:, :, 0] == 255
 
         # Setze die Farbwerte für die Pixel in img_original, wo die Maske gesetzt ist
-        frame_marked_lanes[mask_pixels] = [0, 0, 255]
+        original_frame[mask_bool_pixels] = [0, 0, 255]
 
-        return frame_marked_lanes
+        return original_frame
+
 
 if __name__ == '__main__':
     video_name = 'project_video.mp4'
