@@ -14,6 +14,7 @@ class LaneDetection:
         self.dist = self.calibration_data['dist']
         self.rvecs = self.calibration_data['rvecs']
         self.tvecs = self.calibration_data['tvecs']
+        self.last_stable_frame = None
 
     def start(self):
         # get video
@@ -50,7 +51,11 @@ class LaneDetection:
             filtered_frame = self.filter_frame(transformed_frame)
             thresholded_frame = self.threshold_frame(filtered_frame)
             curve_fitted_frame = self.fit_curve(thresholded_frame, frame)
-            frame = curve_fitted_frame
+            if curve_fitted_frame is None:
+                frame = self.last_stable_frame
+            else:
+                frame = curve_fitted_frame
+                self.last_stable_frame = curve_fitted_frame
             # calculate fps
             fps = 1 / (new_frame_time - prev_frame_time)
             prev_frame_time = new_frame_time
@@ -147,6 +152,8 @@ class LaneDetection:
         # curve fitting for left and right lane
         left_x, left_y = np.where(opened_frame[:, :int(opened_frame.shape[1] / 2)] == 255)
         right_x, right_y = np.where(opened_frame[:, int(opened_frame.shape[1] / 2):] == 255)
+        if len(left_x) == 0 or len(right_x) == 0:
+            return None
         left_fit = np.polyfit(left_x, left_y, 2)
         right_fit = np.polyfit(right_x, right_y, 2)
 
