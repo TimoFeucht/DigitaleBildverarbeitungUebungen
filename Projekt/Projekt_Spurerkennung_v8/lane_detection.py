@@ -45,7 +45,6 @@ class LaneDetection:
 
             # operations on the frame come here
             frame = self.undistorted_frame(frame)
-            # ToDo: add lane detection for frame
             cropped_frame = self.crop_image(frame)
             transformed_frame = self.transform_perspective(cropped_frame)
             filtered_frame = self.filter_frame(transformed_frame)
@@ -111,7 +110,6 @@ class LaneDetection:
         return filtered_img
 
     def filter_frame(self, frame):
-
         # Farbbereiche definieren
         yellow_range = (np.array([20, 100, 20]), np.array([30, 255, 255]))
         white_range = (np.array([0, 0, 200]), np.array([255, 30, 255]))
@@ -132,6 +130,11 @@ class LaneDetection:
     def generate_curve_function(self, params):
         return lambda x: params[0] * x ** 2 + params[1] * x + params[2]
 
+    def opening_frame(self, frame):
+        kernel_ver = np.array([[0, 0, 0], [1, 1, 1], [0, 0, 0]], 'uint8')
+        opening_frame = cv.morphologyEx(frame, cv.MORPH_OPEN, kernel_ver, iterations=5)
+        return opening_frame
+
     def fit_curve(self, frame_warp, original_frame):
         """
         Fits a curve to the lane lines
@@ -139,9 +142,8 @@ class LaneDetection:
         :param original_frame: original image
         :return: original image with curve in red
         """
-        kernel_ver = np.array([[0, 0, 0], [1, 1, 1], [0, 0, 0]], 'uint8')
-        opening_frame = cv.morphologyEx(frame_warp, cv.MORPH_OPEN, kernel_ver, iterations=5)
-        opened_frame = opening_frame
+        opened_frame = self.opening_frame(frame_warp)
+
         # curve fitting for left and right lane
         left_x, left_y = np.where(opened_frame[:, :int(opened_frame.shape[1] / 2)] == 255)
         right_x, right_y = np.where(opened_frame[:, int(opened_frame.shape[1] / 2):] == 255)
@@ -162,15 +164,11 @@ class LaneDetection:
         frame_lanes = np.zeros_like(frame_warp)
         for i in range(len(x_values_left) - 1):
             cv.line(frame_lanes, (int(y_values_left[i]), int(x_values_left[i])),
-                    (int(y_values_left[i + 1]), int(x_values_left[i + 1])), (255, 255, 255), 5)
+                    (int(y_values_left[i + 1]), int(x_values_left[i + 1])), (255, 255, 255), 20)
             cv.line(frame_lanes, (int(y_values_right[i]) + int(frame_lanes.shape[1] / 2), int(x_values_right[i])),
                     (int(y_values_right[i + 1]) + int(frame_lanes.shape[1] / 2), int(x_values_right[i + 1])),
                     (255, 255, 255),
-                    5)
-
-        # create mask for lanes
-        mask_warp_size = np.zeros_like(frame_warp)
-        mask_warp_size[:, :] = frame_lanes
+                    20)
 
         h, w = frame_warp.shape[:2]
         # Rücktransformation der Vogelperspektive bei Funktionen
@@ -182,7 +180,7 @@ class LaneDetection:
         M_inv = cv.getPerspectiveTransform(dst, src)
 
         # Die Rücktransformation der Vogelperspektive zum Originalbild durchführen
-        mask_warp_size_inv = cv.warpPerspective(mask_warp_size, M_inv, (w, h))
+        mask_warp_size_inv = cv.warpPerspective(frame_lanes, M_inv, (w, h))
 
         # create mask for lanes in original frame to fit the curve to the original frame
         mask_original_size = np.zeros_like(original_frame)
