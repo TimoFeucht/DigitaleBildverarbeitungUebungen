@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import os
 import glob
+import concurrent.futures
 
 
 class LaneDetection:
@@ -114,7 +115,7 @@ class LaneDetection:
         filtered_img = cv.bitwise_and(img, img, mask=mask)
         return filtered_img
 
-    def filter_frame(self, frame):
+    def filter_frame_without_threading(self, frame):
         # Farbbereiche definieren
         yellow_range = (np.array([20, 100, 20]), np.array([30, 255, 255]))
         white_range = (np.array([0, 0, 200]), np.array([255, 30, 255]))
@@ -122,6 +123,29 @@ class LaneDetection:
         img_filtered_yellow = self.filter_color_range(frame, *yellow_range)
         img_filtered_white = self.filter_color_range(frame, *white_range)
         img_filtered = cv.addWeighted(img_filtered_yellow, 1, img_filtered_white, 1, 0)
+        return img_filtered
+
+    def filter_frame(self, frame):
+        # Farbbereiche definieren
+        yellow_range = (np.array([20, 100, 20]), np.array([30, 255, 255]))
+        white_range = (np.array([0, 0, 200]), np.array([255, 30, 255]))
+
+        # Use ThreadPoolExecutor for parallel processing
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Submit the tasks for yellow and white color filtering
+            yellow_future = executor.submit(self.filter_color_range, frame, *yellow_range)
+            white_future = executor.submit(self.filter_color_range, frame, *white_range)
+
+            # Wait for the results
+            img_filtered_yellow = yellow_future.result()
+            img_filtered_white = white_future.result()
+
+        # Combine the results using addWeighted
+        img_filtered = cv.addWeighted(img_filtered_yellow, 1, img_filtered_white, 1, 0)
+
+        # Delete variables to free up memory
+        del img_filtered_yellow, img_filtered_white
+
         return img_filtered
 
     def threshold_frame(self, frame):
@@ -144,14 +168,21 @@ class LaneDetection:
         """
         Fits a curve to the lane lines
         :param frame_warp: image in grayscale (cropped, warped and with thresholding)
-        :param original_frame: original image
+        :param original_frame: original image (only undistorted)
         :return: original image with curve in red
         """
-        opened_frame = self.opening_frame(frame_warp)
+        # opening not needed, because the thresholding is already good enough
+        # if opening is needed for one of the harder videos, use the following lines instead
+        # opened_frame = self.opening_frame(frame_warp)
+        # half_y = int(opened_frame.shape[1] / 2)
+        # left_x, left_y = np.where(opened_frame[:, :half_y] == 255)
+        # right_x, right_y = np.where(opened_frame[:, half_y:] == 255)
 
         # curve fitting for left and right lane
-        left_x, left_y = np.where(opened_frame[:, :int(opened_frame.shape[1] / 2)] == 255)
-        right_x, right_y = np.where(opened_frame[:, int(opened_frame.shape[1] / 2):] == 255)
+        half_y = int(frame_warp.shape[1] / 2)
+        left_x, left_y = np.where(frame_warp[:, :half_y] == 255)
+        right_x, right_y = np.where(frame_warp[:, half_y:] == 255)
+
         if len(left_x) == 0 or len(right_x) == 0:
             return None
         left_fit = np.polyfit(left_x, left_y, 2)
