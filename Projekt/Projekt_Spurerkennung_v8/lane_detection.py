@@ -31,7 +31,7 @@ class LaneDetection:
 
         # check if video is opened
         if not cap.isOpened():
-            print("Cannot open camera")
+            print("Cannot open video")
             exit()
         while True:
             frame_counter += 1

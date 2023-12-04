@@ -31,7 +31,7 @@ class LaneDetection:
 
         # check if video is opened
         if not cap.isOpened():
-            print("Cannot open camera")
+            print("Cannot open video")
             exit()
         while True:
             frame_counter += 1
@@ -49,14 +49,75 @@ class LaneDetection:
             frame = self.undistorted_frame(frame)
             cropped_frame = self.crop_image(frame)
             transformed_frame = self.transform_perspective(cropped_frame)
-            filtered_frame = self.filter_frame(transformed_frame)
-            thresholded_frame = self.threshold_frame(filtered_frame)
-            curve_fitted_frame = self.fit_curve(thresholded_frame, frame)
-            if curve_fitted_frame is None:
-                frame = self.last_stable_frame
-            else:
-                frame = curve_fitted_frame
-                self.last_stable_frame = curve_fitted_frame
+            # split the image into left and right side and use multithreading
+            transformed_y_half = int(transformed_frame.shape[1] / 2)
+            left_frame = transformed_frame[:, :(transformed_y_half - 250)]
+            right_frame = transformed_frame[:, (transformed_y_half + 250):]
+
+            # ToDo: make a function for this
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                # ToDo: make ranges static
+                # Farbfilter
+                yellow_range = (np.array([20, 100, 20]), np.array([30, 255, 255]))
+                white_range = (np.array([0, 0, 200]), np.array([255, 30, 255]))
+
+                left_future = executor.submit(self.filter_color_range, left_frame, *yellow_range)
+                right_future = executor.submit(self.filter_color_range, right_frame, *white_range)
+
+                left_filtered_frame = left_future.result()
+                right_filtered_frame = right_future.result()
+
+                # Thresholding
+                left_future = executor.submit(self.threshold_frame, left_filtered_frame)
+                right_future = executor.submit(self.threshold_frame, right_filtered_frame)
+
+                left_thresholded_frame = left_future.result()
+                right_thresholded_frame = right_future.result()
+
+                # Curve fitting
+                left_future = executor.submit(self.fit_curve_one_line, left_thresholded_frame)
+                right_future = executor.submit(self.fit_curve_one_line, right_thresholded_frame)
+
+                if left_future.result() is None or right_future.result() is None:
+                    continue
+                left_x_values, left_y_values = left_future.result()
+                right_x_values, right_y_values = right_future.result()
+
+            # create image from curve function
+            frame_lanes = np.zeros_like(transformed_frame)
+            y_offset = int(frame_lanes.shape[1] / 2 + 250)
+            for i in range(len(left_x_values) - 1):
+                cv.line(frame_lanes, (int(left_y_values[i]), int(left_x_values[i])),
+                        (int(left_y_values[i + 1]), int(left_x_values[i + 1])), (255, 255, 255), 20)
+                cv.line(frame_lanes, (int(right_y_values[i]) + y_offset, int(right_x_values[i])),
+                        (int(right_y_values[i + 1]) + y_offset, int(right_x_values[i + 1])),
+                        (255, 255, 255),20)
+
+            h, w = transformed_frame.shape[:2]
+            # Die Quell- und Ziel-Punkte für die Perspektivtransformation definieren
+            src = np.float32([[340, 40], [540, 40], [870, 240], [10, 240]])
+            dst = np.float32([[0, 0], [w, 0], [w, h], [0, h]])
+
+            # Die inverse Transformationsmatrix berechnen
+            M_inv = cv.getPerspectiveTransform(dst, src)
+
+            # Die Rücktransformation der Vogelperspektive zum Originalbild durchführen
+            mask_warp_size_inv = cv.warpPerspective(frame_lanes, M_inv, (w, h))
+
+            # create mask for lanes in original frame to fit the curve to the original frame
+            mask_original_size = np.zeros_like(frame)
+            h_o, w_o = frame.shape[:2]
+            a = w_o / 2 - w / 2 + 35
+            b = w_o / 2 + w / 2 + 35
+
+            mask_original_size[h_o - h:h_o, int(a):int(b)] = mask_warp_size_inv
+
+            # Erzeuge ein boolean-Array für die Pixel, die in der Maske gesetzt sind
+            mask_bool_pixels = mask_original_size[:, :, 0] == 255
+
+            # Setze die Farbwerte für die Pixel in img_original, wo die Maske gesetzt ist
+            frame[mask_bool_pixels] = [0, 0, 255]
+
             # calculate fps
             fps = 1 / (new_frame_time - prev_frame_time)
             prev_frame_time = new_frame_time
@@ -234,6 +295,26 @@ class LaneDetection:
         original_frame[mask_bool_pixels] = [0, 0, 255]
 
         return original_frame
+
+    def fit_curve_one_line(self, frame_warp):
+        """
+        :param frame_warp: image in grayscale (cropped, warped and with thresholding)
+        :return: x_values, y_values of the curve
+        """
+        x, y = np.where(frame_warp[:, :] == 255)
+
+        if len(x) == 0:
+            return None
+        fit = np.polyfit(x, y, 2)
+
+        # Erzeuge eine Liste von x-Werten
+        x_values = np.linspace(0, 800, 100)
+
+        # Erzeuge die y-Werte basierend auf der Funktion
+        curve_function = self.generate_curve_function(fit)
+        y_values = curve_function(x_values)
+
+        return x_values, y_values
 
 
 if __name__ == '__main__':
