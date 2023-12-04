@@ -179,9 +179,9 @@ class LaneDetection:
         # right_x, right_y = np.where(opened_frame[:, half_y:] == 255)
 
         # curve fitting for left and right lane
-        half_y = int(frame_warp.shape[1] / 2)
-        left_x, left_y = np.where(frame_warp[:, :half_y] == 255)
-        right_x, right_y = np.where(frame_warp[:, half_y:] == 255)
+        half_x = int(frame_warp.shape[1] / 2)
+        left_x, left_y = np.where(frame_warp[:, :half_x] == 255)
+        right_x, right_y = np.where(frame_warp[:, half_x:] == 255)
 
         if len(left_x) == 0 or len(right_x) == 0:
             return None
