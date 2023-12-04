@@ -91,7 +91,7 @@ class LaneDetection:
     def crop_image(self, frame):
         # zuschneiden des Bildes
         # print(frame.shape)
-        return frame[370:, 200:1080]
+        return frame[400:, 200:1080]
 
     def transform_perspective(self, cropped_frame):
         # get the height and width of the images
@@ -115,7 +115,6 @@ class LaneDetection:
         return filtered_img
 
     def filter_frame_without_threading(self, frame):
-        # not in use
         # Farbbereiche definieren
         yellow_range = (np.array([20, 100, 20]), np.array([30, 255, 255]))
         white_range = (np.array([0, 0, 200]), np.array([255, 30, 255]))
@@ -127,7 +126,7 @@ class LaneDetection:
 
     def filter_frame(self, frame):
         # Farbbereiche definieren
-        yellow_range = (np.array([20, 100, 20]), np.array([30, 255, 255]))
+        yellow_range = (np.array([20, 70, 20]), np.array([30, 255, 255]))
         white_range = (np.array([0, 0, 200]), np.array([255, 30, 255]))
 
         # Use ThreadPoolExecutor for parallel processing
@@ -152,7 +151,7 @@ class LaneDetection:
         img_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
         # add thresholding
-        _, binary_image = cv.threshold(img_gray, 180, 255, cv.THRESH_BINARY)
+        _, binary_image = cv.threshold(img_gray, 150, 255, cv.THRESH_BINARY)
 
         return binary_image
 
@@ -238,6 +237,6 @@ class LaneDetection:
 
 
 if __name__ == '__main__':
-    video_name = 'project_video.mp4'
+    video_name = 'challenge_video.mp4'
     ld = LaneDetection(video_name)
     ld.start()

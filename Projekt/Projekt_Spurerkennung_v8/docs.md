@@ -73,7 +73,7 @@ filtered_frame = self.filter_frame(transformed_frame)
 thresholded_frame = self.threshold_frame(filtered_frame)
 curve_fitted_frame = self.fit_curve(thresholded_frame, frame)
 ```
-In dem Projekt wird als Beschleunigungsmethode des Programms 
+In dem Projekt wird als Beschleunigungsmethode de Programms 
 das Filtern nach Farben der Fahrspur (gelb und weiß) in einem 
 separaten Thread durchgeführt (siehe `LaneDetection.filter_frame()`).
 Dadurch können die gelben und weißen Bereiche in den Bildern parallel gefiltert werden.
@@ -83,7 +83,9 @@ In der Funktion `LaneDetection.fit_curve()` wird die Kurve durch die Spurmarkier
 Gleichzeitig werden die Fahrspurmarkierungen direkt auf dem Originalbild gezeichnet.
 
 ## Python Programm für `challenge_video.mp4`
-ToDo: Was mussten wir anpassen?
-
+- image cropping verkleinert
+- farbfilter gelb angepasst
+- thresholding angepasst
+- 
 ## Python Programm für `harder_challenge_video.mp4`
 ToDo: Was mussten wir anpassen?
