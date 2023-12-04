@@ -54,6 +54,7 @@ class LaneDetection:
             curve_fitted_frame = self.fit_curve(thresholded_frame, frame)
             if curve_fitted_frame is None:
                 frame = self.last_stable_frame
+                print("No curve found in frame " + str(frame_counter) + ". Skipping frame.")
             else:
                 frame = curve_fitted_frame
                 self.last_stable_frame = curve_fitted_frame

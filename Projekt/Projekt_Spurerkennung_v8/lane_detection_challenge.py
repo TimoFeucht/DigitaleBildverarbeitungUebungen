@@ -75,6 +75,7 @@ class LaneDetection:
                 right_future = executor.submit(self.fit_curve_one_line, right_thresholded_frame)
 
                 if left_future.result() is None or right_future.result() is None:
+                    print("No curve found in frame " + str(frame_counter) + ". Skipping frame.")
                     continue
                 left_x_values, left_y_values = left_future.result()
                 right_x_values, right_y_values = right_future.result()
