@@ -31,7 +31,7 @@ class LaneDetection:
 
         # check if video is opened
         if not cap.isOpened():
-            print("Cannot open camera")
+            print("Cannot open video")
             exit()
         while True:
             frame_counter += 1
@@ -54,6 +54,7 @@ class LaneDetection:
             curve_fitted_frame = self.fit_curve(thresholded_frame, frame)
             if curve_fitted_frame is None:
                 frame = self.last_stable_frame
+                print("No curve found in frame " + str(frame_counter) + ". Skipping frame.")
             else:
                 frame = curve_fitted_frame
                 self.last_stable_frame = curve_fitted_frame
@@ -69,7 +70,6 @@ class LaneDetection:
                 cv.putText(frame, str(fps), (7, 80), font, 3, (0, 0, 255), 3, cv.LINE_AA)
 
             # display fps average
-            # ToDo: frame average needed?
             cv.putText(frame, str(int(fps_sum / frame_counter)), (1080, 80), font, 3, (0, 0, 0), 3, cv.LINE_AA)
 
             # Display the resulting frame
@@ -116,6 +116,7 @@ class LaneDetection:
         return filtered_img
 
     def filter_frame_without_threading(self, frame):
+        # not in use
         # Farbbereiche definieren
         yellow_range = (np.array([20, 100, 20]), np.array([30, 255, 255]))
         white_range = (np.array([0, 0, 200]), np.array([255, 30, 255]))
@@ -179,9 +180,9 @@ class LaneDetection:
         # right_x, right_y = np.where(opened_frame[:, half_y:] == 255)
 
         # curve fitting for left and right lane
-        half_y = int(frame_warp.shape[1] / 2)
-        left_x, left_y = np.where(frame_warp[:, :half_y] == 255)
-        right_x, right_y = np.where(frame_warp[:, half_y:] == 255)
+        half_x = int(frame_warp.shape[1] / 2)
+        left_x, left_y = np.where(frame_warp[:, :half_x] == 255)
+        right_x, right_y = np.where(frame_warp[:, half_x:] == 255)
 
         if len(left_x) == 0 or len(right_x) == 0:
             return None
