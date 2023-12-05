@@ -270,6 +270,9 @@ class LaneDetection:
         # calculate the radius of the curve
         res = ((1 + (f_x_derivative(x) ** 2)) ** 1.5) / np.abs(f_x_second_derivative(x))
 
+        # meter per pixel
+        res = res * 30 / 720
+
         print("Radius: " + str(res))
 
         return res
