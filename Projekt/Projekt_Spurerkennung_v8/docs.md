@@ -98,11 +98,22 @@ Um die Fahrspurmarkierungen richtig zu erkennen mussten folgende Änderungen vor
 
 - Image cropping verkleinert, sodass nur die Fahrspur zu sehen ist
 - Thresholding angepasst, sodass die gelben Fahrspuren richtig erkannt werden
+- ROI für linke und rechte Fahrspurmarkierung angepasst.
 
 In diesem Video werden Fahrspur auf der linken und der rechten Seite in 
 seperaten Threads gefiltert. 
 Dadurch kann die Farbfilterung, Thresholding und Curve Fitting
 für die linke und rechte Fahrspur parallel durchgeführt werden.
+In dem Video sind zwischen den Fahrspuren teilweise weiße Rauten zu sehen.
+Diese würde die Fahrspurmarkierungen stören:
+Wenn auf den Frames, auf die Curve-Fitting angewandt wird Störgeräusche vorhanden sind,
+wird die Kurve durch die Störgeräusche sehr stark beeinflusst.
+Deshalb darf auf den Frames, auf die Curve-Fitting angewandt wird, nur die Fahrspurmarkierung zu sehen sein.
+Um dieses Problem zu beheben, wurde die ROI für die linke und rechte Fahrspurmarkierung angepasst.
+Die linke Fahrspurmarkierung wird nur noch auf der linken Seite des Bildes gesucht.
+Die rechte Fahrspurmarkierung wird nur noch auf der rechten Seite des Bildes gesucht.
+Der Bereich zwischen den Fahrspuren wird nicht mehr untersucht.
+
 
 ### Probleme bei der Umsetztung von `challenge_video.mp4`
 ![challenge_video_frame_140.jpg](img%2FUdacity%2Fchallenge_video_frame_140.jpg)
