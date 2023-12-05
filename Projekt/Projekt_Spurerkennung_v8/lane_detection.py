@@ -195,6 +195,7 @@ class LaneDetection:
 
         # Erzeuge die y-Werte basierend auf der Funktion
         curve_function_left = self.generate_curve_function(left_fit)
+        self.calc_curve_radius(left_fit, 0)
         y_values_left = curve_function_left(x_values_left)
         curve_function_right = self.generate_curve_function(right_fit)
         y_values_right = curve_function_right(x_values_right)
@@ -236,6 +237,42 @@ class LaneDetection:
         original_frame[mask_bool_pixels] = [0, 0, 255]
 
         return original_frame
+
+    def first_derivative(self, f_x):
+        """
+        Calculates the first derivative of a curve function ax^2 + bx + c
+        :param f_x: curve function
+        :return: first derivative of the curve
+        """
+        return lambda x: f_x[0] * 2 * x + f_x[1]
+
+    def second_derivative(self, f_x):
+        """
+        Calculates the second derivative of a curve function ax^2 + bx + c
+        :param f_x: curve function
+        :return: second derivative of the curve
+        """
+        return lambda x: f_x[0] * 2
+
+    def calc_curve_radius(self, f_x, x):
+        """
+        Calculates the radius of a curve function ax^2 + bx + c
+        :param f_x: array of parameters of the curve function f(x) = f_x[0] * x^2 + f_x[1] * x + f_x[2]
+        :param x: x value to calculate the radius
+        :return: radius of the curve
+        """
+
+        # calculate the first derivative of the curve function
+        f_x_derivative = self.first_derivative(f_x)
+        # calculate the second derivative of the curve function
+        f_x_second_derivative = self.second_derivative(f_x)
+
+        # calculate the radius of the curve
+        res = ((1 + (f_x_derivative(x) ** 2)) ** 1.5) / np.abs(f_x_second_derivative(x))
+
+        print("Radius: " + str(res))
+
+        return res
 
 
 if __name__ == '__main__':
