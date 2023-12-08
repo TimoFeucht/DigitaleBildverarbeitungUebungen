@@ -132,3 +132,9 @@ In den Frames, in den keine Fahrspurmarkierungen erkannt werden, wird die Kurve 
 
 ## Python Programm für `harder_challenge_video.mp4`
 ToDo: Was mussten wir anpassen?
+
+### Jupyter Notebook für KITTI Dataset
+Das Jupyter Notebook "lane_detecction_kitty.ipynb" führt ebenfalls Lane Detection durch. Allerdings mussten ein paar 
+Schritte angepasst werden, die beim KITTI Datensatz anders sind als beim Udacity Datensatz. Die einzelnen Änderungen
+sind auch nochmal im Notebook-Markdown beschrieben. Die Hauptänderungen:
+- 
