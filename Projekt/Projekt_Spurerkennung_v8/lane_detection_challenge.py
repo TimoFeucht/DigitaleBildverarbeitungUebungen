@@ -4,7 +4,7 @@ import numpy as np
 import concurrent.futures
 
 
-class LaneDetection:
+class LaneDetectionChallenge:
     def __init__(self, video_name='project_video.mp4'):
         self.video_name = video_name
         self.calibration_data = np.load('calibration.npz')
@@ -228,5 +228,5 @@ class LaneDetection:
 
 if __name__ == '__main__':
     video_name = 'challenge_video.mp4'
-    ld = LaneDetection(video_name)
+    ld = LaneDetectionChallenge(video_name)
     ld.start()

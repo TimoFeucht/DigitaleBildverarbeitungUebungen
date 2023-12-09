@@ -51,7 +51,7 @@ class LaneDetection:
             transformed_frame = self.transform_perspective(cropped_frame)
             filtered_frame = self.filter_frame(transformed_frame)
             thresholded_frame = self.threshold_frame(filtered_frame)
-            curve_fitted_frame = self.fit_curve(thresholded_frame, frame)
+            curve_fitted_frame, radius = self.fit_curve(thresholded_frame, frame)
             if curve_fitted_frame is None:
                 frame = self.last_stable_frame
                 print("No curve found in frame " + str(frame_counter) + ". Skipping frame.")
@@ -71,7 +71,8 @@ class LaneDetection:
 
             # display fps average
             cv.putText(frame, str(int(fps_sum / frame_counter)), (1080, 80), font, 3, (0, 0, 0), 3, cv.LINE_AA)
-
+            # display radius
+            cv.putText(frame, f"Radius: {radius:.2f}", (7, 600), font, 1, (100, 255, 0), 1, cv.LINE_AA)
             # Display the resulting frame
             cv.imshow(self.video_name, frame)
             if cv.waitKey(1) == ord('q'):
@@ -115,17 +116,6 @@ class LaneDetection:
         filtered_img = cv.bitwise_and(img, img, mask=mask)
         return filtered_img
 
-    def filter_frame_without_threading(self, frame):
-        # not in use
-        # Farbbereiche definieren
-        yellow_range = (np.array([20, 100, 20]), np.array([30, 255, 255]))
-        white_range = (np.array([0, 0, 200]), np.array([255, 30, 255]))
-
-        img_filtered_yellow = self.filter_color_range(frame, *yellow_range)
-        img_filtered_white = self.filter_color_range(frame, *white_range)
-        img_filtered = cv.addWeighted(img_filtered_yellow, 1, img_filtered_white, 1, 0)
-        return img_filtered
-
     def filter_frame(self, frame):
         # Farbbereiche definieren
         yellow_range = (np.array([20, 100, 20]), np.array([30, 255, 255]))
@@ -168,9 +158,10 @@ class LaneDetection:
     def fit_curve(self, frame_warp, original_frame):
         """
         Fits a curve to the lane lines
+        Also calculates the curvature of the lane lines as radius
         :param frame_warp: image in grayscale (cropped, warped and with thresholding)
         :param original_frame: original image (only undistorted)
-        :return: original image with curve in red
+        :return: original image with curve in red and radius of left lane line
         """
         # opening not needed, because the thresholding is already good enough
         # if opening is needed for one of the harder videos, use the following lines instead
@@ -195,7 +186,13 @@ class LaneDetection:
 
         # Erzeuge die y-Werte basierend auf der Funktion
         curve_function_left = self.generate_curve_function(left_fit)
-        self.calc_curve_radius(left_fit, 0)
+        # self.calc_curve_radius(left_fit, 0)
+        # Umrechnung in Fahrzeugkoordinatensystem:
+        # Meter pro Pixel in x (x_m_per_pix): 30 / 720
+        # Meter pro Pixel in y (y_m_per_pix): 3.7 / 700
+        # Use x=0 because the car is at x=0
+        radius = self.calc_curve_radius(np.polyfit(left_x * 30/720, left_y * 3.7 / 700, 2), 0)
+
         y_values_left = curve_function_left(x_values_left)
         curve_function_right = self.generate_curve_function(right_fit)
         y_values_right = curve_function_right(x_values_right)
@@ -236,12 +233,12 @@ class LaneDetection:
         # Setze die Farbwerte für die Pixel in img_original, wo die Maske gesetzt ist
         original_frame[mask_bool_pixels] = [0, 0, 255]
 
-        return original_frame
+        return original_frame, radius
 
     def first_derivative(self, f_x):
         """
         Calculates the first derivative of a curve function ax^2 + bx + c
-        :param f_x: curve function
+        :param f_x: curve function params
         :return: first derivative of the curve
         """
         return lambda x: f_x[0] * 2 * x + f_x[1]
@@ -249,7 +246,7 @@ class LaneDetection:
     def second_derivative(self, f_x):
         """
         Calculates the second derivative of a curve function ax^2 + bx + c
-        :param f_x: curve function
+        :param f_x: curve function params
         :return: second derivative of the curve
         """
         return lambda x: f_x[0] * 2
@@ -269,11 +266,6 @@ class LaneDetection:
 
         # calculate the radius of the curve
         res = ((1 + (f_x_derivative(x) ** 2)) ** 1.5) / np.abs(f_x_second_derivative(x))
-
-        # meter per pixel
-        res = res * 30 / 720
-
-        print("Radius: " + str(res))
 
         return res
 
