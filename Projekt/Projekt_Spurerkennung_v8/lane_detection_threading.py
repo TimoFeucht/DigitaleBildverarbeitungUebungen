@@ -88,6 +88,9 @@ class LaneDetection:
             # fit the curve to the original frame
             frame = self.fit_frame_lanes_to_original_frame(frame_lanes_inv, frame)
 
+            # calculate curve radius for left lane
+            radius = self.calc_curve_radius(np.polyfit(left_x_values * 30 / 720, left_y_values * 3.7 / 700, 2), 0)
+
             # calculate fps
             fps = 1 / (new_frame_time - prev_frame_time)
             prev_frame_time = new_frame_time
@@ -101,7 +104,9 @@ class LaneDetection:
 
             # display fps average
             cv.putText(frame, str(int(fps_sum / frame_counter)), (1080, 80), font, 3, (0, 0, 0), 3, cv.LINE_AA)
-
+            # display radius
+            cv.putText(frame, f"Radius: {radius:.2f}", (7, 600), font, 1, (100, 255, 0), 1, cv.LINE_AA)
+            
             # Display the resulting frame
             cv.imshow(self.video_name, frame)
             if cv.waitKey(1) == ord('q'):
@@ -224,6 +229,21 @@ class LaneDetection:
         frame[mask_bool_pixels] = [0, 0, 255]
 
         return frame
+
+    def calc_curve_radius(self, f_x, x):
+        """
+        Calculates the radius of a curve function ax^2 + bx + c
+        :param f_x: array of parameters of the curve function f(x) = f_x[0] * x^2 + f_x[1] * x + f_x[2]
+        :param x: x value to calculate the radius
+        :return: radius of the curve
+        """
+        f_x_derivative = f_x[0] * 2 * x + f_x[1]
+        f_x_second_derivative = f_x[0] * 2
+
+        # calculate the radius of the curve
+        res = ((1 + (f_x_derivative ** 2)) ** 1.5) / np.abs(f_x_second_derivative)
+
+        return res
 
 
 if __name__ == '__main__':
