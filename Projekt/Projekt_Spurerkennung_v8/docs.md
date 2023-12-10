@@ -1,14 +1,16 @@
 # Digitale Bildverarbeitung - Spurerkennung
 
 ## Setup
+**Project runs on Python 3.12**, other Python Verisons have not been tested. 
 
-1. Die Videos und Bilder müssen in den Ordnern `img\Udacity` für die Kalibration (`\calib\ `), die
+1. Istallieren der Requirements aus `requirements.txt`.
+2. Die Videos und Bilder müssen in den Ordnern `img\Udacity` für die Kalibration (`\calib\ `), die
    Mindestanforderung (`project_video.mp4`) und erste Zusatzleistung (`challenge_video.mp4`) sein. Die Daten der zweite
    Zusatzleistung (Anwendung der Spurerkennung auf dem Kitti-Datensatz) müssen in dem Ordner (`img\KITTI`) sein. Falls
    sich ein Pfad ändert, so müssen die Pfade auch im jeweiligen Programm angepasst werden.
-2. Das Jupyter Notebook `Projekt_Spurerkennung_Dokumentation.ipynb` muss zuerst ausgeführt werden, damit die
+3. Das Jupyter Notebook `Projekt_Spurerkennung_Dokumentation.ipynb` muss zuerst ausgeführt werden, damit die
    Datei `calibration_parameters.npz` erstellt wird und die Python Programme die Parameter importieren können.
-3. Das Programm mit den Mindestanforderungen ist `lane_detection.py`.
+4. Das Programm mit den Mindestanforderungen ist `lane_detection.py`.
 
 ***
 
@@ -81,7 +83,8 @@ Der Radius wurde direkt im Programm `lane_detection.py` für das Video `project_
 implementiert.
 
 ### Optimierung des Codes
-Die Optimierungsmaßnahme wurde in das Programm `lane_detection_challange.py` eigebaut. Dabei werden die Fahrspuren sowie deren Curve Fitting in separaten Threads berechnet. 
+In dem Projekt wird als Beschleunigungsmethode des Programms das Filtern nach Farben der Fahrspur (gelb und weiß), Thresholding und Curve Fitting in einem separaten Thread durchgeführt. Dadurch können die gelben und weißen Bereiche in den Bildern parallel gefiltert werden. Dadurch wird die Verarbeitungsgeschwindigkeit erhöht. 
+Die Optimierung wurde direkt in den Python Programmen `lane_detection.py` und `lane_detection_challenge.py` sowie dem Jupyter-Notebook `lane_detection_kitty.ipynb`umgesetzt.
 
 Als Beispiel ein Codeausschnitt aus `LaneDetectionChallange.start()`. Hierbei wird der Farbfilter für die linke und rechte Fahrspur in seperaten Threads angewandt, um die Ausführungsgeschwindigeit zu erhöhen.
 ````python
