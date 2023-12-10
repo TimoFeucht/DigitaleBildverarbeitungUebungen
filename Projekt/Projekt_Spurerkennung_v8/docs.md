@@ -213,3 +213,14 @@ Die Fahrspurmarkierungen werden erst wieder erkannt, wenn die Fahrspurmarkierung
 In den Frames, in den keine Fahrspurmarkierungen erkannt werden, wird die Kurve aus dem vorherigen Frame übernommen.
 
 ## 2. KITTY-Datensatz
+Das Jupyter Notebook "lane_detection_kitty.ipynb" führt ebenfalls Lane Detection durch. Allerdings mussten ein paar 
+Schritte angepasst werden, die beim KITTI Datensatz anders sind als beim Udacity Datensatz. Die einzelnen Änderungen
+sind auch nochmal im Notebook-Markdown beschrieben. Die Hauptänderungen:
+- Cropped Frame anpassen
+- Perspektivtransformation anpassen
+- Größem von left/right frame anpassen
+- Farbfilter anpassen (gelb -> weiß)
+- Zusätzliche Funktionen für die Lane Detection: Vertikale Kantenerkennung implementieren
+- Thresholding anpassen
+- Fitting der einzelnen Frames (left/right lane) in undistorted image angepasst, da unterschiedlich zugeschnitten wurde
+- Error Handling für nicht erkannte Lane: Es wurde eine Funktion für das Erkennen von Bordsteinkanten mithilfe des Sobel-Filters implementiert.
